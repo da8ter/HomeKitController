@@ -90,7 +90,7 @@ final class HapSrp
     public function clientS(GMP $B, GMP $a, GMP $x, GMP $u): GMP
     {
         if (gmp_cmp(gmp_mod($B, $this->n), 0) === 0) {
-            throw new RuntimeException('SRP: ungültiger öffentlicher Schlüssel der Gegenstelle');
+            throw new RuntimeException('SRP: invalid public key from device');
         }
         $base = gmp_mod(gmp_sub($B, gmp_mul($this->k(), gmp_powm($this->g, $x, $this->n))), $this->n);
         $exp = gmp_add($a, gmp_mul($u, $x));

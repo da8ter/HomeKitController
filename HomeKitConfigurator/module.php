@@ -71,10 +71,11 @@ class HomeKitConfigurator extends IPSModuleStrict
                 if (($txt['id'] ?? '') === '' || !isset($d['IPv4'][0])) {
                     continue;
                 }
-                $out[] = ['name' => (string)$svc['Name'], 'id' => strtoupper($txt['id']), 'md' => (string)($txt['md'] ?? ''), 'ci' => (string)($txt['ci'] ?? ''),
+                // ein Gerät je HomeKit-ID, auch wenn Bonjour es über mehrere Schnittstellen meldet
+                $out[strtoupper($txt['id'])] ??= ['name' => (string)$svc['Name'], 'id' => strtoupper($txt['id']), 'md' => (string)($txt['md'] ?? ''), 'ci' => (string)($txt['ci'] ?? ''),
                           'sf' => (string)($txt['sf'] ?? ''), 'host' => (string)$d['IPv4'][0], 'port' => (int)$d['Port']];
             }
         }
-        return $out;
+        return array_values($out);
     }
 }

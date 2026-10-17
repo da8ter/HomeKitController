@@ -28,12 +28,12 @@ final class HapTlv8
 
     /** Fehlercodes der Gegenstelle (kTLVError_*). */
     public const ERRORS = [
-        1 => 'Unbekannter Fehler',
-        2 => 'Falscher HomeKit-Code oder Signatur ungültig',
-        3 => 'Zu viele Versuche, Gerät wartet (Backoff)',
-        4 => 'Gerät nimmt keine weitere Kopplung an',
-        5 => 'Gerät hat die maximale Zahl an Versuchen erreicht und sperrt die Kopplung',
-        6 => 'Gerät ist gerade mit einer anderen Kopplung beschäftigt',
+        1 => 'Unknown error',
+        2 => 'Wrong HomeKit code or invalid signature',
+        3 => 'Too many attempts, device is backing off',
+        4 => 'Device accepts no further pairing',
+        5 => 'Device reached the maximum number of attempts and locked pairing',
+        6 => 'Device is busy with another pairing',
     ];
 
     /**
@@ -66,12 +66,12 @@ final class HapTlv8
         $lastFull = false; // vorheriger Eintrag hatte genau 255 Byte: ein gleicher Typ setzt ihn fort
         while ($pos < $len) {
             if ($pos + 2 > $len) {
-                throw new InvalidArgumentException('TLV8 abgeschnitten (Kopf)');
+                throw new InvalidArgumentException('TLV8 truncated (header)');
             }
             $type = ord($data[$pos]);
             $size = ord($data[$pos + 1]);
             if ($pos + 2 + $size > $len) {
-                throw new InvalidArgumentException('TLV8 abgeschnitten (Wert)');
+                throw new InvalidArgumentException('TLV8 truncated (value)');
             }
             $value = substr($data, $pos + 2, $size);
             $pos += 2 + $size;
@@ -103,7 +103,7 @@ final class HapTlv8
     {
         if (isset($map[self::ERROR])) {
             $code = ord($map[self::ERROR]);
-            $text = self::ERRORS[$code] ?? ('Fehlercode ' . $code);
+            $text = self::ERRORS[$code] ?? ('error code ' . $code);
             if ($code === 3 && isset($map[self::RETRY_DELAY])) {
                 $text .= ' (' . self::uint($map[self::RETRY_DELAY]) . ' s)';
             }

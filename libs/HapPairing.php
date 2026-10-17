@@ -31,9 +31,9 @@ final class HapPairing
     public static function setupM3(string $m2, string $code, ?GMP $a = null): array
     {
         $map = HapTlv8::map($m2);
-        HapTlv8::assertNoError($map, 'Kopplung M2');
+        HapTlv8::assertNoError($map, 'Pairing M2');
         if (($map[HapTlv8::STATE] ?? '') !== "\x02" || !isset($map[HapTlv8::SALT], $map[HapTlv8::PUBLIC_KEY])) {
-            throw new RuntimeException('Kopplung M2: unerwartete Antwort');
+            throw new RuntimeException('Pairing M2: unexpected response');
         }
         $srp = HapSrp::hap()->client('Pair-Setup', self::normalizeCode($code), $map[HapTlv8::SALT], $map[HapTlv8::PUBLIC_KEY], $a);
         $body = HapTlv8::encode([[HapTlv8::STATE, "\x03"], [HapTlv8::PUBLIC_KEY, $srp['A']], [HapTlv8::PROOF, $srp['M1']]]);
@@ -44,9 +44,9 @@ final class HapPairing
     public static function setupM5(string $m4, array $state, string $controllerId, string $ltsk, string $ltpk): array
     {
         $map = HapTlv8::map($m4);
-        HapTlv8::assertNoError($map, 'Kopplung M4');
+        HapTlv8::assertNoError($map, 'Pairing M4');
         if (($map[HapTlv8::STATE] ?? '') !== "\x04" || !hash_equals($state['M2'], (string)($map[HapTlv8::PROOF] ?? ''))) {
-            throw new RuntimeException('Kopplung M4: Gerät hat sich nicht ausgewiesen');
+            throw new RuntimeException('Pairing M4: device proof invalid');
         }
         $K = $state['K'];
         $x = HapCrypto::hkdf($K, 'Pair-Setup-Controller-Sign-Salt', 'Pair-Setup-Controller-Sign-Info');
@@ -61,16 +61,16 @@ final class HapPairing
     public static function setupFinish(string $m6, array $state): array
     {
         $map = HapTlv8::map($m6);
-        HapTlv8::assertNoError($map, 'Kopplung M6');
+        HapTlv8::assertNoError($map, 'Pairing M6');
         if (($map[HapTlv8::STATE] ?? '') !== "\x06" || !isset($map[HapTlv8::ENCRYPTED_DATA])) {
-            throw new RuntimeException('Kopplung M6: unerwartete Antwort');
+            throw new RuntimeException('Pairing M6: unexpected response');
         }
         $sub = HapTlv8::map(HapCrypto::open($map[HapTlv8::ENCRYPTED_DATA], $state['encKey'], HapCrypto::nonceText('PS-Msg06')));
         $id = (string)($sub[HapTlv8::IDENTIFIER] ?? '');
         $ltpk = (string)($sub[HapTlv8::PUBLIC_KEY] ?? '');
         $x = HapCrypto::hkdf($state['K'], 'Pair-Setup-Accessory-Sign-Salt', 'Pair-Setup-Accessory-Sign-Info');
         if ($id === '' || !HapCrypto::verify((string)($sub[HapTlv8::SIGNATURE] ?? ''), $x . $id . $ltpk, $ltpk)) {
-            throw new RuntimeException('Kopplung M6: Signatur des Geräts ungültig');
+            throw new RuntimeException('Pairing M6: device signature invalid');
         }
         return ['id' => $id, 'ltpk' => $ltpk];
     }
@@ -88,20 +88,20 @@ final class HapPairing
     public static function verifyM3(string $m2, array $state, string $controllerId, string $ltsk, string $accessoryId, string $accessoryLtpk): array
     {
         $map = HapTlv8::map($m2);
-        HapTlv8::assertNoError($map, 'Sitzung M2');
+        HapTlv8::assertNoError($map, 'Session M2');
         $bPub = (string)($map[HapTlv8::PUBLIC_KEY] ?? '');
         if (($map[HapTlv8::STATE] ?? '') !== "\x02" || strlen($bPub) !== 32 || !isset($map[HapTlv8::ENCRYPTED_DATA])) {
-            throw new RuntimeException('Sitzung M2: unerwartete Antwort');
+            throw new RuntimeException('Session M2: unexpected response');
         }
         $shared = HapCrypto::x25519($state['secret'], $bPub);
         $key = HapCrypto::hkdf($shared, 'Pair-Verify-Encrypt-Salt', 'Pair-Verify-Encrypt-Info');
         $sub = HapTlv8::map(HapCrypto::open($map[HapTlv8::ENCRYPTED_DATA], $key, HapCrypto::nonceText('PV-Msg02')));
         $id = (string)($sub[HapTlv8::IDENTIFIER] ?? '');
         if (!hash_equals($accessoryId, $id)) {
-            throw new RuntimeException('Sitzung M2: anderes Gerät (' . $id . ') meldet sich');
+            throw new RuntimeException('Session M2: a different device answers');
         }
         if (!HapCrypto::verify((string)($sub[HapTlv8::SIGNATURE] ?? ''), $bPub . $id . $state['public'], $accessoryLtpk)) {
-            throw new RuntimeException('Sitzung M2: Signatur des Geräts ungültig');
+            throw new RuntimeException('Session M2: device signature invalid');
         }
         $sig = HapCrypto::sign($state['public'] . $controllerId . $bPub, $ltsk);
         $inner = HapTlv8::encode([[HapTlv8::IDENTIFIER, $controllerId], [HapTlv8::SIGNATURE, $sig]]);
@@ -113,9 +113,9 @@ final class HapPairing
     public static function verifyFinish(string $m4, array $state): array
     {
         $map = HapTlv8::map($m4);
-        HapTlv8::assertNoError($map, 'Sitzung M4');
+        HapTlv8::assertNoError($map, 'Session M4');
         if (($map[HapTlv8::STATE] ?? '') !== "\x04") {
-            throw new RuntimeException('Sitzung M4: unerwartete Antwort');
+            throw new RuntimeException('Session M4: unexpected response');
         }
         return HapSession::keys($state['shared']);
     }
@@ -132,7 +132,7 @@ final class HapPairing
     {
         $digits = preg_replace('/\D/', '', $code) ?? '';
         if (strlen($digits) !== 8) {
-            throw new InvalidArgumentException('Der HomeKit-Code hat 8 Ziffern (z. B. 123-45-678).');
+            throw new InvalidArgumentException('The HomeKit code has 8 digits (e.g. 123-45-678).');
         }
         return substr($digits, 0, 3) . '-' . substr($digits, 3, 2) . '-' . substr($digits, 5, 3);
     }

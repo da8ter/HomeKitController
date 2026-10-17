@@ -34,7 +34,7 @@ final class HapCrypto
     {
         $plain = sodium_crypto_aead_chacha20poly1305_ietf_decrypt($cipher, $aad, $nonce, $key);
         if ($plain === false) {
-            throw new RuntimeException('Entschlüsselung fehlgeschlagen (Schlüssel oder Daten falsch)');
+            throw new RuntimeException('Decryption failed (wrong key or corrupted data)');
         }
         return $plain;
     }

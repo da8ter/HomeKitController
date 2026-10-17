@@ -42,7 +42,7 @@ try { HapTlv8::decode("\x06\x05ab"); } catch (InvalidArgumentException $e) { $th
 check($threw, 'abgeschnittene Daten werden abgewiesen');
 $threw = '';
 try { HapTlv8::assertNoError(HapTlv8::map(HapTlv8::encode([[HapTlv8::STATE, "\x04"], [HapTlv8::ERROR, "\x02"]])), 'M4'); } catch (RuntimeException $e) { $threw = $e->getMessage(); }
-check(str_contains($threw, 'HomeKit-Code'), 'Fehler 2 wird als falscher Code gemeldet');
+check(str_contains($threw, 'HomeKit code'), 'Fehler 2 wird als falscher Code gemeldet');
 check(HapTlv8::uint("\x2c\x01") === 300, 'Ganzzahl little-endian');
 
 section('SRP-6a gegen RFC 5054 Anhang B (1024 Bit, SHA-1)');
@@ -171,7 +171,7 @@ $acc2 = new FakeAccessory();
 [$m3b, $stb] = HapPairing::setupM3($acc2->pairSetup(HapPairing::setupM1()), '111-22-333');
 $err = '';
 try { HapPairing::setupM5($acc2->pairSetup($m3b), $stb, $ctrlId, $ltk['secret'], $ltk['public']); } catch (RuntimeException $e) { $err = $e->getMessage(); }
-check(str_contains($err, 'HomeKit-Code'), 'falscher Code: Gerät lehnt M3 ab, Klartext-Fehler');
+check(str_contains($err, 'HomeKit code'), 'falscher Code: Gerät lehnt M3 ab, Klartext-Fehler');
 $threw = false;
 try { HapPairing::normalizeCode('1234'); } catch (InvalidArgumentException $e) { $threw = true; }
 check($threw && HapPairing::normalizeCode('031 45 154') === '031-45-154', 'Code wird geprüft und normalisiert');
@@ -185,12 +185,12 @@ check($keys['write'] === $accKeys['read'] && $keys['read'] === $accKeys['write']
 $err = '';
 [$neg1, $negState] = HapPairing::verifyM1();
 try { HapPairing::verifyM3($acc->pairVerify($neg1), $negState, $ctrlId, $ltk['secret'], 'XX:XX', $pair['ltpk']); } catch (RuntimeException $e) { $err = $e->getMessage(); }
-check(str_contains($err, 'anderes Gerät'), 'falsche Gerätekennung wird abgewiesen');
+check(str_contains($err, 'different device'), 'falsche Gerätekennung wird abgewiesen');
 $err = '';
 $other = HapCrypto::ed25519Keypair();
 [$neg2, $negState2] = HapPairing::verifyM1();
 try { HapPairing::verifyM3($acc->pairVerify($neg2), $negState2, $ctrlId, $ltk['secret'], $pair['id'], $other['public']); } catch (RuntimeException $e) { $err = $e->getMessage(); }
-check(str_contains($err, 'Signatur'), 'fremder Langzeitschlüssel: Signatur fällt durch');
+check(str_contains($err, 'signature'), 'fremder Langzeitschlüssel: Signatur fällt durch');
 
 section('Verschlüsselte Rahmen');
 $msg = str_repeat('0123456789', 250); // 2500 Byte -> 3 Rahmen

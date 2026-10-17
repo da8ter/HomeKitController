@@ -71,16 +71,18 @@ class HomeKitDevice extends IPSModuleStrict
             $this->RegisterMessage($io, IM_CHANGESTATUS);
         }
         $this->SetBuffer('IO', (string)$io);
-        if ($this->ReadPropertyString('AccessoryId') !== '' && $this->ReadPropertyString('Host') === '') {
-            $this->Resolve();
-        }
-        $this->configureIo(true);
+        $moved = $this->ReadPropertyString('AccessoryId') !== '' && $this->ReadPropertyString('Host') === '' && $this->Resolve();
         $this->afterAccessories();
         $this->SetTimerInterval('Watch', self::WATCH_S * 1000);
-        if ($this->ioActive() && ($this->loadSession()['phase'] ?? 'closed') === 'closed') {
-            // Sitzungszustand verloren (Reload, Kernelstart), Verbindung aber offen: Das Gerät erwartet
-            // darauf noch verschlüsselte Rahmen. Nur eine frische Verbindung erlaubt /pair-verify.
+        $phase = (string)($this->loadSession()['phase'] ?? 'closed');
+        // Socket nicht aktiv, aber auf Öffnen gestellt (z. B. Fehler 200 nach Reload): ebenfalls frisch verbinden
+        $ioStuck = !$this->ioActive() && (bool)(json_decode($this->GetConfigurationForParent(), true)['Open'] ?? false);
+        if ($moved || $this->addressChanged() || $ioStuck || ($this->ioActive() && $phase === 'closed')) {
+            // Neue Adresse, oder Sitzungszustand verloren (Reload, Kernelstart) bei offener Verbindung:
+            // Das Gerät erwartet darauf noch verschlüsselte Rahmen. Nur eine frische Verbindung erlaubt /pair-verify.
             $this->Reconnect();
+        } else {
+            $this->configureIo(true);
         }
         $this->updateState();
     }
@@ -122,7 +124,7 @@ class HomeKitDevice extends IPSModuleStrict
     {
         $model = $this->model();
         if (!isset($model[$Ident]) || !$model[$Ident]['writable']) {
-            throw new InvalidArgumentException('Unbekannter Ident ' . $Ident);
+            throw new InvalidArgumentException(sprintf($this->Translate('Unknown ident %s'), $Ident));
         }
         $c = $model[$Ident];
         $body = (string)json_encode(['characteristics' => [['aid' => $c['aid'], 'iid' => $c['iid'], 'value' => HapModel::toHomeKit($Value, $c['format'])]]]);
@@ -138,24 +140,30 @@ class HomeKitDevice extends IPSModuleStrict
         if ($this->pairing() !== null) {
             return $this->Translate('Already paired. Unpair first.');
         }
-        $code = HapPairing::normalizeCode($Code);
+        try {
+            $code = HapPairing::normalizeCode($Code);
+        } catch (InvalidArgumentException $e) {
+            return $this->Translate($e->getMessage());
+        }
         if (!$this->ioActive()) {
             return $this->Translate('No connection to the device. Check address and that it is in the same network.');
         }
         $this->SetBuffer('AuthFailed', '');
-        IPS_SemaphoreEnter($this->semaphore(), 5000);
+        if (!$this->lock()) {
+            return $this->Translate('Connection is busy, try again in a moment.');
+        }
         try {
             $s = $this->loadSession();
             $retry = ($s['phase'] ?? '') !== 'open';
             if (!$retry) {
                 $ltk = HapCrypto::ed25519Keypair();
-                $s = ['phase' => 'setup2', 'q' => [], 'raw' => '', 'buf' => '', 'wc' => 0, 'rc' => 0, 'since' => time(), 'code' => $code,
-                      'ctrl' => ['id' => HapPairing::newControllerId(), 'ltsk' => base64_encode($ltk['secret']), 'ltpk' => base64_encode($ltk['public'])]];
+                $s += ['code' => $code, 'ctrl' => ['id' => HapPairing::newControllerId(), 'ltsk' => base64_encode($ltk['secret']), 'ltpk' => base64_encode($ltk['public'])]];
+                $s['phase'] = 'setup2';
                 $this->send($s, 'POST', '/pair-setup', HapPairing::setupM1(), HapHttp::TLV, 'setup2');
                 $this->saveSession($s);
             }
         } finally {
-            IPS_SemaphoreLeave($this->semaphore());
+            $this->unlock();
         }
         if ($retry) {
             $this->Reconnect(); // Kopplung nur auf einer frischen Verbindung
@@ -231,7 +239,9 @@ class HomeKitDevice extends IPSModuleStrict
         if ($phase === 'ready') {
             if ($quiet > 2 * self::RESYNC_S) {
                 $this->SendDebug('Watch', 'keine Antwort seit ' . $quiet . ' s, verbinde neu', 0);
-                $this->Resolve();
+                if ($this->ReadPropertyString('Host') === '') {
+                    $this->Resolve();
+                }
                 $this->Reconnect();
             } elseif ($quiet > self::RESYNC_S) {
                 $ids = implode(',', array_map(fn(array $c) => $c['aid'] . '.' . $c['iid'], array_filter($this->model(), fn(array $c) => in_array('pr', $c['perms'], true))));
@@ -241,12 +251,17 @@ class HomeKitDevice extends IPSModuleStrict
             }
             return;
         }
+        $bonjour = $this->ReadPropertyString('Host') === '';
         if ($this->GetBuffer('AuthFailed') === '1' || $this->address()[0] === '') {
-            $this->Resolve();
+            if ($bonjour) {
+                $this->Resolve();
+            }
             return;
         }
         if (!$this->ioActive() || $phase === 'error' || $age > 60 && $phase !== 'open') {
-            $this->Resolve();
+            if ($bonjour) {
+                $this->Resolve();
+            }
             $this->Reconnect();
         }
     }
@@ -259,7 +274,7 @@ class HomeKitDevice extends IPSModuleStrict
         [$host, $port] = $this->address();
         $state = sprintf($this->Translate('Address: %s | Paired: %s | Session: %s'), $host !== '' ? $host . ':' . $port : '-', $p !== null ? $p['accId'] : $this->Translate('no'), (string)($s['phase'] ?? '-'));
         if (($s['error'] ?? '') !== '') {
-            $state .= ' | ' . $s['error'];
+            $state .= ' | ' . $this->translateError((string)$s['error']);
         }
         $form['actions'][0]['caption'] = $state;
         return (string)json_encode($form);
@@ -292,12 +307,16 @@ class HomeKitDevice extends IPSModuleStrict
             return;
         }
         IPS_SetConfiguration($io, (string)json_encode($cfg));
-        IPS_ApplyChanges($io);
+        // Ein Gerät, das gerade nicht erreichbar ist, würde sonst jede Minute "Connection refused" ins Log schreiben;
+        // der Zustand steht ohnehin am Socket (200) und in der Statusvariable.
+        @IPS_ApplyChanges($io);
     }
 
     private function withReadySession(callable $fn): void
     {
-        IPS_SemaphoreEnter($this->semaphore(), 5000);
+        if (!$this->lock()) {
+            throw new RuntimeException($this->Translate('Connection is busy, try again in a moment.'));
+        }
         try {
             $s = $this->loadSession();
             if (($s['phase'] ?? '') !== 'ready') {
@@ -306,8 +325,29 @@ class HomeKitDevice extends IPSModuleStrict
             $fn($s);
             $this->saveSession($s);
         } finally {
-            IPS_SemaphoreLeave($this->semaphore());
+            $this->unlock();
         }
+    }
+
+    /** Fehlertexte der Bausteine sind englische Schlüssel der Form "Schritt: Text [(N s)]"; beide Teile übersetzen. */
+    private function translateError(string $message): string
+    {
+        if (preg_match('/^([^:]+): (.+?)( \(\d+ s\))?$/', $message, $m) === 1) {
+            return $this->Translate($m[1]) . ': ' . $this->Translate($m[2]) . ($m[3] ?? '');
+        }
+        return $this->Translate($message);
+    }
+
+    /** Weicht die Adresse des Client Socket von der gewünschten ab (Bonjour hat eine neue gefunden)? */
+    private function addressChanged(): bool
+    {
+        $io = $this->ioId();
+        if ($io <= 0) {
+            return false;
+        }
+        [$host, $port] = $this->address();
+        $cur = json_decode(IPS_GetConfiguration($io), true);
+        return $host !== '' && (($cur['Host'] ?? '') !== $host || (int)($cur['Port'] ?? 0) !== $port);
     }
 
     private function updateState(): void

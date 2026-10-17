@@ -50,7 +50,30 @@
             "Brightness": "Helligkeit",
             "Battery": "Batterie",
             "Battery low": "Batterie schwach",
-            "Contact": "Kontakt"
+            "Contact": "Kontakt",
+            "Paired with %s": "Gekoppelt mit %s",
+            "Pairing removed": "Kopplung aufgehoben",
+            "Unknown ident %s": "Unbekannter Ident %s",
+            "Connection is busy, try again in a moment.": "Die Verbindung ist beschäftigt, bitte gleich noch einmal versuchen.",
+            "The HomeKit code has 8 digits (e.g. 123-45-678).": "Der HomeKit-Code hat 8 Ziffern (z. B. 123-45-678).",
+            "Pairing M2": "Kopplung M2",
+            "Pairing M4": "Kopplung M4",
+            "Pairing M6": "Kopplung M6",
+            "Session M2": "Sitzung M2",
+            "Session M4": "Sitzung M4",
+            "unexpected response": "unerwartete Antwort",
+            "device proof invalid": "Gerät hat sich nicht ausgewiesen",
+            "device signature invalid": "Signatur des Geräts ungültig",
+            "a different device answers": "ein anderes Gerät meldet sich",
+            "Unknown error": "Unbekannter Fehler",
+            "Wrong HomeKit code or invalid signature": "Falscher HomeKit-Code oder Signatur ungültig",
+            "Too many attempts, device is backing off": "Zu viele Versuche, Gerät wartet",
+            "Device accepts no further pairing": "Gerät nimmt keine weitere Kopplung an",
+            "Device reached the maximum number of attempts and locked pairing": "Gerät hat die maximale Zahl an Versuchen erreicht und sperrt die Kopplung",
+            "Device is busy with another pairing": "Gerät ist gerade mit einer anderen Kopplung beschäftigt",
+            "Decryption failed (wrong key or corrupted data)": "Entschlüsselung fehlgeschlagen (Schlüssel oder Daten falsch)",
+            "no pairing stored": "keine Kopplung gespeichert",
+            "no client socket": "kein Client Socket"
         }
     }
 }

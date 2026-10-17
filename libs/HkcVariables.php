@@ -5,6 +5,8 @@ declare(strict_types=1);
 /**
  * Variablen aus den Diensten des Geräts: eine Variable je bekanntem Merkmal (Ident "A<aid>_I<iid>"),
  * Darstellung je Art. Merkmale, die beim Gerät verschwinden, werden gelöscht (MaintainVariable false).
+ * Werte aus der Geräteliste kommen nur in neu angelegte Variablen: Bestehende tragen schon neuere
+ * Werte aus Ereignissen, die ein ApplyChanges nicht überschreiben darf.
  */
 trait HkcVariables
 {
@@ -20,18 +22,25 @@ trait HkcVariables
         return $out;
     }
 
+    private function varId(string $ident): int
+    {
+        $id = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
+        return is_int($id) && $id > 0 ? $id : 0;
+    }
+
     private function afterAccessories(): void
     {
         $model = $this->model();
         $pos = 10;
         foreach ($model as $ident => $c) {
+            $isNew = $this->varId($ident) === 0;
             // Ohne Dienstnamen trägt die Variable die (englische) Bezeichnung des Merkmals: übersetzen
             $name = str_ends_with($c['name'], $c['label']) ? substr($c['name'], 0, -strlen($c['label'])) . $this->Translate($c['label']) : $c['name'];
             $this->MaintainVariable($ident, $name, $c['vartype'], $this->presentation($c), $pos++, true);
             if ($c['writable']) {
                 $this->EnableAction($ident);
             }
-            if ($c['value'] !== null) {
+            if ($isNew && $c['value'] !== null) {
                 $this->SetValue($ident, HapModel::toSymcon($c['value'], $c['vartype']));
             }
         }
@@ -54,7 +63,7 @@ trait HkcVariables
         $model = $this->model();
         foreach ($list as $v) {
             $ident = 'A' . (int)($v['aid'] ?? 0) . '_I' . (int)($v['iid'] ?? 0);
-            if (!isset($model[$ident]) || !array_key_exists('value', $v) || @$this->GetIDForIdent($ident) === false) {
+            if (!isset($model[$ident]) || !array_key_exists('value', $v) || $this->varId($ident) === 0) {
                 continue;
             }
             $this->SetValue($ident, HapModel::toSymcon($v['value'], $model[$ident]['vartype']));

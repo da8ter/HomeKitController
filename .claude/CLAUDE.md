@@ -18,8 +18,13 @@ Plan: `~/.claude/plans/schau-dir-mal-die-modular-sunrise.md` (freigegeben 17.10.
   - Adresse: per Bonjour über die HomeKit-ID (`Resolve`, TXT `id=`), Ports ändern sich nach Neustarts; feste Adresse nur als Ausweichweg.
   - Timer `Watch` (60 s): nach Fehler neu verbinden, nach 5 min Stille Werte nachlesen, nach 10 min Stille neu verbinden.
   - Timer `Reconnect`: **nie** aus `ReceiveData` heraus `IPS_ApplyChanges` am eigenen Client Socket aufrufen – der Socket blockiert sich dann selbst („Instanz ist belegt“, danach Zustand 104 trotz Open=true, nur ein Kernel-Neustart löst ihn; Docker 17.10.2026).
-  - Geht der Sitzungszustand verloren (Reload, Kernelstart) bei offener Verbindung, wird neu verbunden: Das Gerät erwartet auf der alten Verbindung verschlüsselte Rahmen.
-- **`HomeKitConfigurator/`** (`HKCC`, Typ 4): listet `_hap._tcp` über die DNS-SD-Steuerung (TXT `id`, `md`, `ci`, `sf`; `sf=1` = koppelbar), legt Gerät + eigenen Client Socket als Kette an, ordnet Instanzen über die HomeKit-ID zu. Bonjour-Ergebnisse der DNS-SD-Steuerung schwanken (auf der SymBox fehlten am 17.10.2026 bei einer Abfrage beide FP2, die Minuten vorher gelistet waren): Formular neu öffnen; das Gerät behält die zuletzt gefundene Adresse. Im Docker gibt es kein Bonjour (Bridge-Netz).
+  - Geht der Sitzungszustand verloren (Reload, Kernelstart) bei offener Verbindung, wird neu verbunden: Das Gerät erwartet auf der alten Verbindung verschlüsselte Rahmen. Ebenso bei neuer Adresse (Bonjour) oder wenn der Socket trotz Open=true nicht aktiv ist.
+  - **Semaphor-Regeln** (Review 18.10.2026): `lock()` liefert `false` nach 5 s, dann wird der Aufruf übersprungen, nie ohne Sperre weitergearbeitet. `sessionClosed()` sperrt ebenfalls. Jede Sitzung trägt eine Generation `gen`; `resetSession()` erhöht sie. `receive()` ignoriert Bytes, wenn die Sitzung `closed`/`error` ist.
+  - **Fehler in /pair-verify** = Kopplung ungültig (zurückgesetztes oder getauschtes Gerät): genau ein Log-Eintrag, Status 202, kein Dauerversuch. Weg zurück: „Kopplung lokal löschen“, dann neu koppeln (im Docker geprüft).
+  - `GET /accessories` wird nur bei Status < 300 und gültigem JSON übernommen; sonst Fehler, damit nie ein leeres Modell alle Variablen löscht.
+  - Werte aus der Geräteliste kommen nur in **neu angelegte** Variablen; bestehende behalten die Ereigniswerte (ApplyChanges überschreibt nichts).
+  - Fehlertexte der Bausteine sind englische Schlüssel (`Schritt: Text`), das Modul übersetzt beide Teile (`translateError`).
+- **`HomeKitConfigurator/`** (`HKCC`, Typ 4): listet `_hap._tcp` über die DNS-SD-Steuerung (TXT `id`, `md`, `ci`, `sf`; `sf=1` = koppelbar), legt Gerät + eigenen Client Socket als Kette an, ordnet Instanzen über die HomeKit-ID zu, ein Gerät je ID (Bonjour meldet es sonst je Schnittstelle). Bonjour-Ergebnisse der DNS-SD-Steuerung schwanken (auf der SymBox fehlten am 17.10.2026 bei einer Abfrage beide FP2, die Minuten vorher gelistet waren): Formular neu öffnen; das Gerät behält die zuletzt gefundene Adresse. Im Docker gibt es kein Bonjour (Bridge-Netz).
 - Alle Module `IPSModuleStrict`, Darstellungen statt Profilen.
 
 ## Prüfen

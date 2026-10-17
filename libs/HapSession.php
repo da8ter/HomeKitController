@@ -48,7 +48,7 @@ final class HapSession
         while (strlen($buffer) >= 2) {
             $size = unpack('v', substr($buffer, 0, 2))[1];
             if ($size > self::MAX_FRAME) {
-                throw new RuntimeException('HomeKit-Rahmen zu groß: ' . $size);
+                throw new RuntimeException('HomeKit frame too large: ' . $size);
             }
             if (strlen($buffer) < 2 + $size + 16) {
                 break;
