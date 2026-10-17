@@ -1,0 +1,12 @@
+{
+    "id": "{2F6CAB77-1045-4556-8086-8E49FF0CE489}",
+    "name": "HomeKit Configurator",
+    "type": 4,
+    "vendor": "Stephan Sprick",
+    "aliases": [],
+    "parentRequirements": [],
+    "childRequirements": [],
+    "implemented": [],
+    "prefix": "HKCC",
+    "url": "https://github.com/da8ter/HomeKitController"
+}

@@ -9,6 +9,7 @@ require __DIR__ . '/../libs/HapCrypto.php';
 require __DIR__ . '/../libs/HapSession.php';
 require __DIR__ . '/../libs/HapHttp.php';
 require __DIR__ . '/../libs/HapPairing.php';
+require __DIR__ . '/../libs/HapModel.php';
 
 $n = 0;
 $fail = 0;
@@ -223,6 +224,27 @@ $p3 = HapHttp::parse($chunked);
 check($p3 !== null && $p3['body'] === 'Wikipedia' && $p3['rest'] === 'X', 'chunked mit Rest');
 check(HapHttp::parse(substr($chunked, 0, -4)) === null, 'chunked ohne Schlussblock: noch nichts');
 check(HapHttp::parse("HTTP/1.1 204 No Content\r\n\r\n")['status'] === 204, '204 ohne Inhalt');
+
+section('Modell: Dienste und Merkmale -> Variablen');
+$full = fn(string $short) => str_pad($short, 8, '0', STR_PAD_LEFT) . HapModel::APPLE_SUFFIX;
+$acc = ['accessories' => [['aid' => 1, 'services' => [
+    ['type' => '3E', 'iid' => 1, 'characteristics' => [['type' => '23', 'iid' => 5, 'perms' => ['pr'], 'format' => 'string', 'value' => 'Presence-Sensor-FP2'], ['type' => '14', 'iid' => 2, 'perms' => ['pw'], 'format' => 'bool']]],
+    ['type' => $full('86'), 'iid' => 8, 'characteristics' => [['type' => $full('71'), 'iid' => 9, 'perms' => ['pr', 'ev'], 'format' => 'uint8', 'value' => 1], ['type' => '23', 'iid' => 10, 'perms' => ['pr'], 'format' => 'string', 'value' => 'Zone Sofa']]],
+    ['type' => '86', 'iid' => 11, 'characteristics' => [['type' => '71', 'iid' => 12, 'perms' => ['pr', 'ev'], 'format' => 'uint8', 'value' => 0]]],
+    ['type' => '84', 'iid' => 17, 'characteristics' => [['type' => '6B', 'iid' => 18, 'perms' => ['pr', 'ev'], 'format' => 'float', 'value' => 123.4, 'minValue' => 0.0001, 'maxValue' => 100000]]],
+    ['type' => '49', 'iid' => 20, 'characteristics' => [['type' => '25', 'iid' => 21, 'perms' => ['pr', 'pw', 'ev'], 'format' => 'bool', 'value' => false], ['type' => 'E863F10D-079E-48FF-8F27-9C2605A29F52', 'iid' => 22, 'perms' => ['pr'], 'format' => 'uint16', 'value' => 5]]],
+]]]];
+$m = HapModel::characteristics($acc);
+$by = array_column($m, null, 'ident');
+check(HapModel::shortType('00000071-0000-1000-8000-0026BB765291') === '71' && HapModel::shortType('6b') === '6B' && HapModel::shortType('E863F10D-079E-48FF-8F27-9C2605A29F52') === 'E863F10D-079E-48FF-8F27-9C2605A29F52', 'Kurzform nur für Apple-Typen');
+check(!isset($by['A1_I5']) && !isset($by['A1_I2']), 'Geräteinformation und Identify ergeben keine Variablen');
+check($by['A1_I9']['kind'] === 'presence' && $by['A1_I9']['name'] === 'Zone Sofa' && $by['A1_I9']['vartype'] === 0 && $by['A1_I9']['events'], 'Zone mit Dienstnamen, Präsenz als Bool, meldet Ereignisse');
+check($by['A1_I12']['name'] === 'Presence', 'Präsenz ohne Dienstnamen trägt die Bezeichnung');
+check($by['A1_I18']['kind'] === 'lux' && $by['A1_I18']['vartype'] === 2 && $by['A1_I18']['max'] === 100000.0, 'Helligkeit als Float mit Grenzen');
+check($by['A1_I21']['kind'] === 'switch' && $by['A1_I21']['writable'], 'Schalter ist schreibbar');
+check($by['A1_I22']['kind'] === '' && $by['A1_I22']['vartype'] === 1, 'unbekanntes Merkmal: keine Art, Typ aus dem Format');
+check(HapModel::toSymcon(1, 0) === true && HapModel::toSymcon('0', 0) === false && HapModel::toSymcon(12.6, 1) === 13 && HapModel::toSymcon(3, 2) === 3.0, 'Werte nach Symcon');
+check(HapModel::toHomeKit(true, 'bool') === true && HapModel::toHomeKit('7', 'uint8') === 7 && HapModel::toHomeKit(1, 'float') === 1.0, 'Werte nach HomeKit');
 
 echo "\n" . ($fail === 0 ? "Alle $n Prüfungen bestanden.\n" : "$fail von $n Prüfungen fehlgeschlagen.\n");
 exit($fail === 0 ? 0 : 1);

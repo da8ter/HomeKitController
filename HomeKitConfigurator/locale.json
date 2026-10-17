@@ -1,0 +1,29 @@
+{
+    "translations": {
+        "de": {
+            "HomeKit Configurator": "HomeKit Konfigurator",
+            "HomeKit devices in the network (Bonjour). Devices already paired elsewhere (e.g. Apple Home) must be removed there first.": "HomeKit-Geräte im Netz (Bonjour). Geräte, die schon anderswo gekoppelt sind (z. B. Apple Home), müssen dort zuerst entfernt werden.",
+            "Devices": "Geräte",
+            "Name": "Name",
+            "Model": "Modell",
+            "Category": "Kategorie",
+            "HomeKit ID": "HomeKit-ID",
+            "Pairable": "Koppelbar",
+            "Address": "Adresse",
+            "yes": "ja",
+            "no (paired elsewhere)": "nein (anderswo gekoppelt)",
+            "paired with Symcon": "mit Symcon gekoppelt",
+            "not found": "nicht gefunden",
+            "Sensor": "Sensor",
+            "Bridge": "Bridge",
+            "Lightbulb": "Leuchte",
+            "Outlet": "Steckdose",
+            "Switch": "Schalter",
+            "Thermostat": "Thermostat",
+            "Air conditioner": "Klimagerät",
+            "Window covering": "Rollladen",
+            "Other": "Sonstiges",
+            "DNS-SD Control (Bonjour) is not available.": "Die DNS-SD-Steuerung (Bonjour) ist nicht verfügbar."
+        }
+    }
+}

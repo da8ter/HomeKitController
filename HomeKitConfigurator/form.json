@@ -1,0 +1,24 @@
+{
+    "elements": [],
+    "actions": [
+        { "type": "Label", "caption": "HomeKit devices in the network (Bonjour). Devices already paired elsewhere (e.g. Apple Home) must be removed there first." },
+        {
+            "type": "Configurator",
+            "name": "Devices",
+            "caption": "Devices",
+            "rowCount": 12,
+            "delete": true,
+            "sort": { "column": "name", "direction": "ascending" },
+            "columns": [
+                { "caption": "Name", "name": "name", "width": "auto" },
+                { "caption": "Model", "name": "model", "width": "140px" },
+                { "caption": "Category", "name": "category", "width": "140px" },
+                { "caption": "HomeKit ID", "name": "accessoryId", "width": "170px" },
+                { "caption": "Pairable", "name": "pairable", "width": "110px" },
+                { "caption": "Address", "name": "address", "width": "170px" }
+            ],
+            "values": []
+        }
+    ],
+    "status": []
+}

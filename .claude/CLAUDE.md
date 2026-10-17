@@ -19,12 +19,13 @@ Plan: `~/.claude/plans/schau-dir-mal-die-modular-sunrise.md` (freigegeben 17.10.
   - Timer `Watch` (60 s): nach Fehler neu verbinden, nach 5 min Stille Werte nachlesen, nach 10 min Stille neu verbinden.
   - Timer `Reconnect`: **nie** aus `ReceiveData` heraus `IPS_ApplyChanges` am eigenen Client Socket aufrufen – der Socket blockiert sich dann selbst („Instanz ist belegt“, danach Zustand 104 trotz Open=true, nur ein Kernel-Neustart löst ihn; Docker 17.10.2026).
   - Geht der Sitzungszustand verloren (Reload, Kernelstart) bei offener Verbindung, wird neu verbunden: Das Gerät erwartet auf der alten Verbindung verschlüsselte Rahmen.
-- Konfigurator folgt in Stufe 4. Alle Module `IPSModuleStrict`, Darstellungen statt Profilen.
+- **`HomeKitConfigurator/`** (`HKCC`, Typ 4): listet `_hap._tcp` über die DNS-SD-Steuerung (TXT `id`, `md`, `ci`, `sf`; `sf=1` = koppelbar), legt Gerät + eigenen Client Socket als Kette an, ordnet Instanzen über die HomeKit-ID zu. Bonjour-Ergebnisse der DNS-SD-Steuerung schwanken (auf der SymBox fehlten am 17.10.2026 bei einer Abfrage beide FP2, die Minuten vorher gelistet waren): Formular neu öffnen; das Gerät behält die zuletzt gefundene Adresse. Im Docker gibt es kein Bonjour (Bridge-Netz).
+- Alle Module `IPSModuleStrict`, Darstellungen statt Profilen.
 
 ## Prüfen
 
 ```bash
-php tests/hap_lib_test.php   # TLV8, SRP gegen RFC 5054, Kopplung/Sitzung gegen ein simuliertes Gerät, Rahmen, HTTP
+php tests/hap_lib_test.php   # TLV8, SRP gegen RFC 5054, Kopplung/Sitzung gegen ein simuliertes Gerät, Rahmen, HTTP, Modell
 php -l <Datei>
 ```
 
