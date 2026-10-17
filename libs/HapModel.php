@@ -97,9 +97,10 @@ final class HapModel
             }
         }
         // Mehrere Merkmale mit gleichem Namen (z. B. Präsenz und Helligkeit ohne Dienstnamen): Bezeichnung anhängen
-        $count = array_count_values(array_column($out, 'name'));
+        // nur unter den bekannten Merkmalen zählen: unbekannte (z. B. Herstellerfelder im selben Dienst) werden keine Variablen
+        $count = array_count_values(array_column(array_filter($out, fn(array $c) => $c['kind'] !== ''), 'name'));
         foreach ($out as &$c) {
-            if ($count[$c['name']] > 1 && $c['name'] !== $c['label']) {
+            if ($c['kind'] !== '' && $count[$c['name']] > 1 && $c['name'] !== $c['label']) {
                 $c['name'] .= ' ' . $c['label'];
             }
         }

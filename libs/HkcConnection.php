@@ -179,6 +179,7 @@ trait HkcConnection
                 $this->send($s, 'GET', '/accessories', '', '', 'accessories');
                 return;
             case 'accessories':
+                $this->SendDebug('Geräteliste', $msg['body'], 0);
                 $this->WriteAttributeString('Accessories', $msg['body']);
                 $this->SetBuffer('Apply', '1'); // Variablen außerhalb des Semaphors anlegen
                 $ev = [];
