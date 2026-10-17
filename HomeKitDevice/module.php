@@ -206,7 +206,7 @@ class HomeKitDevice extends IPSModuleStrict
         }
         foreach (@ZC_QueryServiceType($control, '_hap._tcp', '') ?: [] as $svc) {
             foreach (@ZC_QueryService($control, (string)$svc['Name'], '_hap._tcp', (string)($svc['Domain'] ?? 'local.')) ?: [] as $d) {
-                if (in_array('id=' . $id, array_map('strtoupper', (array)($d['TXTRecords'] ?? [])), true) && isset($d['IPv4'][0])) {
+                if (in_array('ID=' . $id, array_map('strtoupper', (array)($d['TXTRecords'] ?? [])), true) && isset($d['IPv4'][0])) {
                     $new = ['host' => (string)$d['IPv4'][0], 'port' => (int)$d['Port'], 'name' => (string)$svc['Name']];
                     if ($new !== json_decode($this->ReadAttributeString('Resolved'), true)) {
                         $this->WriteAttributeString('Resolved', (string)json_encode($new));
