@@ -1,0 +1,5 @@
+.DS_Store
+# Lokale Claude-Werkzeuge bleiben draußen, das Projektgedächtnis nicht
+.claude/*
+!.claude/CLAUDE.md
+!.claude/docs/

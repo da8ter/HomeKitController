@@ -1,0 +1,12 @@
+{
+    "id": "{565D94C4-F520-45D5-AF8E-ADFDB1390C39}",
+    "author": "Stephan Sprick",
+    "name": "HomeKit Controller",
+    "url": "https://github.com/da8ter/HomeKitController",
+    "compatibility": {
+        "version": "8.1"
+    },
+    "version": "0.1",
+    "build": 1,
+    "date": 0
+}

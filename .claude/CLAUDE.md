@@ -1,0 +1,36 @@
+# HomeKit Controller (Bibliothek für Symcon)
+
+Symcon als HomeKit-Steuerzentrale (HAP over IP): koppelt HomeKit-Geräte mit ihrem 8-stelligen Code, hält eine verschlüsselte Dauerverbindung und spiegelt Dienste und Merkmale als Variablen. Erster Anwendungsfall: Aqara FP2 (Präsenz je Zone, Helligkeit). Kein Apple Home, keine Cloud. Öffentliches Repo `da8ter/HomeKitController`, Zweig `main`.
+
+Plan: `~/.claude/plans/schau-dir-mal-die-modular-sunrise.md` (freigegeben 17.10.2026). Betriebsdaten dieses Rechners: `CLAUDE.local.md` (nicht eingecheckt).
+
+## Aufbau
+
+- **`libs/`** – reine Bausteine ohne Symcon:
+  - `HapTlv8` (TLV8 mit Fragmenten, Fehlercodes im Klartext)
+  - `HapSrp` (SRP-6a, 3072 Bit, SHA-512; Gruppe und Hash einstellbar für die RFC-5054-Vektoren)
+  - `HapCrypto` (HKDF-SHA512, ChaCha20-Poly1305, Ed25519, X25519 über sodium)
+  - `HapSession` (verschlüsselte Rahmen; zustandslos, Zähler und Rest gehen hinein und heraus)
+  - `HapHttp` (HTTP/1.1 und `EVENT/1.0`, Content-Length und chunked)
+  - `HapPairing` (`/pair-setup` M1–M6, `/pair-verify` M1–M4, `/pairings`)
+- **`tools/hap_cli.php`** – Diagnose ohne Symcon: `pair`, `listen`, `unpair`. Die Kopplungsdatei enthält den privaten Schlüssel, deshalb immer außerhalb des Repos ablegen.
+- Module folgen in Stufe 2–4 (Gerät am Client Socket, Konfigurator), alle `IPSModuleStrict`, Darstellungen statt Profilen.
+
+## Prüfen
+
+```bash
+php tests/hap_lib_test.php   # TLV8, SRP gegen RFC 5054, Kopplung/Sitzung gegen ein simuliertes Gerät, Rahmen, HTTP
+php -l <Datei>
+```
+
+Gegenprobe mit einer unabhängigen Implementierung: HAP-python als Test-Gerät (Python ≤ 3.12; 3.14 bricht an `asyncio.SafeChildWatcher`). Rezept in `.claude/docs/testen.md`.
+
+## Regeln
+
+- **Commits:** ein Thema je Commit, deutsche Botschaft, **ohne** Co-Authored-By-Zeile. Prüfungen vorher.
+- **Nie** `git checkout`/`git restore` auf Dateien.
+- **Push und Release nur auf Zuruf.** Release: `build` und `date` in `library.json`.
+- **Öffentliches Repo:** keine IP-Adressen, HomeKit-Codes, Geräte-IDs echter Geräte, Kopplungsdateien, Instanz-IDs, Pfade unter `/Users/`.
+- **Echte Geräte:** Kopplungsversuche an einem echten Gerät (FP2) nur auf Zusage und erst, wenn alles gegen HAP-python grün ist. Mehrere Fehlversuche sperren das Gerät (`kTLVError_MaxTries`).
+- **Geheimnisse:** Langzeitschlüssel nie im Klartext in Eigenschaften oder Attributen (`settings.json` ist weltlesbar). Sitzungsschlüssel nur im Puffer.
+- **Symcon-Plattformwissen** (HEX-Datenfluss bei Module Strict, Objektgrenzen, Puffergrenzen, Geheimnisse): `../List/.claude/docs/plattform/`.
