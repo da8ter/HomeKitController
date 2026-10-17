@@ -1,0 +1,28 @@
+{
+    "elements": [
+        { "type": "Label", "caption": "The device is found via Bonjour by its HomeKit ID. Address and port are only needed if Bonjour is not available." },
+        { "type": "ValidationTextBox", "name": "AccessoryId", "caption": "HomeKit ID (e.g. A4:FA:0D:12:34:56)" },
+        { "type": "ExpansionPanel", "caption": "Fixed address (optional)", "items": [
+            { "type": "ValidationTextBox", "name": "Host", "caption": "Address" },
+            { "type": "NumberSpinner", "name": "Port", "caption": "Port", "minimum": 0, "maximum": 65535 }
+        ] }
+    ],
+    "actions": [
+        { "type": "Label", "caption": "" },
+        { "type": "RowLayout", "items": [
+            { "type": "ValidationTextBox", "name": "Code", "caption": "HomeKit code (8 digits)" },
+            { "type": "Button", "caption": "Pair", "onClick": "echo HKC_Pair($id, $Code);" }
+        ] },
+        { "type": "RowLayout", "items": [
+            { "type": "Button", "caption": "Reconnect", "onClick": "HKC_Resolve($id); HKC_Reconnect($id);" },
+            { "type": "Button", "caption": "Unpair", "confirm": "Remove the pairing from the device?", "onClick": "echo HKC_Unpair($id);" },
+            { "type": "Button", "caption": "Delete pairing locally", "confirm": "Only delete the pairing in Symcon (e.g. after the device was reset)?", "onClick": "echo HKC_ForgetPairing($id);" }
+        ] }
+    ],
+    "status": [
+        { "code": 200, "icon": "error", "caption": "No connection to the device" },
+        { "code": 201, "icon": "inactive", "caption": "Not paired: enter the HomeKit code and press Pair" },
+        { "code": 202, "icon": "error", "caption": "Pairing invalid: the device no longer knows Symcon (reset?). Delete the pairing locally and pair again." },
+        { "code": 203, "icon": "error", "caption": "Device not found via Bonjour" }
+    ]
+}

@@ -14,7 +14,12 @@ Plan: `~/.claude/plans/schau-dir-mal-die-modular-sunrise.md` (freigegeben 17.10.
   - `HapHttp` (HTTP/1.1 und `EVENT/1.0`, Content-Length und chunked)
   - `HapPairing` (`/pair-setup` M1–M6, `/pair-verify` M1–M4, `/pairings`)
 - **`tools/hap_cli.php`** – Diagnose ohne Symcon: `pair`, `listen`, `unpair`. Die Kopplungsdatei enthält den privaten Schlüssel, deshalb immer außerhalb des Repos ablegen.
-- Module folgen in Stufe 2–4 (Gerät am Client Socket, Konfigurator), alle `IPSModuleStrict`, Darstellungen statt Profilen.
+- **`HomeKitDevice/`** (`HKC`, Typ 3, Kind eines eigenen Client Socket): Kopplung (`HKC_Pair`, `HKC_Unpair`, `HKC_ForgetPairing`), Sitzung, Variablen je bekanntem Merkmal (Ident `A<aid>_I<iid>`, Name aus dem Dienstnamen, z. B. FP2-Zonen), Ereignisse, `RequestAction` für schreibbare Merkmale. Traits `libs/HkcConnection.php` (Sitzungszustand im Puffer `S` unter Semaphor, Antwort-Warteschlange `q`) und `libs/HkcVariables.php`; Bausteine `HapModel` (Merkmal → Art/Typ) und `HkcSecretStore` (Kopplung verschlüsselt, Schlüsseldatei `HomeKitController.key`, 0600).
+  - Adresse: per Bonjour über die HomeKit-ID (`Resolve`, TXT `id=`), Ports ändern sich nach Neustarts; feste Adresse nur als Ausweichweg.
+  - Timer `Watch` (60 s): nach Fehler neu verbinden, nach 5 min Stille Werte nachlesen, nach 10 min Stille neu verbinden.
+  - Timer `Reconnect`: **nie** aus `ReceiveData` heraus `IPS_ApplyChanges` am eigenen Client Socket aufrufen – der Socket blockiert sich dann selbst („Instanz ist belegt“, danach Zustand 104 trotz Open=true, nur ein Kernel-Neustart löst ihn; Docker 17.10.2026).
+  - Geht der Sitzungszustand verloren (Reload, Kernelstart) bei offener Verbindung, wird neu verbunden: Das Gerät erwartet auf der alten Verbindung verschlüsselte Rahmen.
+- Konfigurator folgt in Stufe 4. Alle Module `IPSModuleStrict`, Darstellungen statt Profilen.
 
 ## Prüfen
 
