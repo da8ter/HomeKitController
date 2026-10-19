@@ -94,12 +94,35 @@ class HomeKitDevice extends IPSModuleStrict
             return;
         }
         if ($Message === IM_CHANGESTATUS && $SenderID === $this->ioId()) {
-            if ((int)($Data[0] ?? 0) === IS_ACTIVE) {
+            $status = (int)($Data[0] ?? 0);
+            if ($status === IS_ACTIVE) {
+                $this->SetBuffer('Retry', '');
                 $this->sessionOpened();
             } else {
                 $this->sessionClosed();
+                if ($status >= IS_EBASE) {
+                    $this->scheduleReconnect();
+                }
             }
         }
+    }
+
+    /**
+     * Der Socket steht im Fehler (Gerät hat die Verbindung gekappt, meist Neustart mit neuem Port): bald selbst neu
+     * verbinden, bevor der Client Socket nach 60 s auf der alten Adresse scheitert und das als Fehler ins Log schreibt.
+     * Nicht direkt hier verbinden (Nachrichtenpfad des Sockets), sondern über den Timer; Abstand wächst 5/10/20/30 s.
+     */
+    private function scheduleReconnect(): void
+    {
+        if ($this->GetBuffer('AuthFailed') === '1') {
+            return;
+        }
+        $n = (int)$this->GetBuffer('Retry');
+        $this->SetBuffer('Retry', (string)($n + 1));
+        $moved = $this->ReadPropertyString('Host') === '' && $this->Resolve();
+        $delay = $moved ? 1 : ([5, 10, 20][$n] ?? 30);
+        $this->SendDebug('Verbindung', 'Socket im Fehler, neuer Versuch in ' . $delay . ' s' . ($moved ? ' (neue Adresse)' : ''), 0);
+        $this->SetTimerInterval('Reconnect', $delay * 1000);
     }
 
     public function GetConfigurationForParent(): string
@@ -199,6 +222,10 @@ class HomeKitDevice extends IPSModuleStrict
     public function Reconnect(): void
     {
         $this->SetTimerInterval('Reconnect', 0);
+        // Nach einem Verbindungsverlust zuerst die Adresse nachführen: nach einem Neustart meldet das Gerät einen neuen Port
+        if (!$this->ioActive() && $this->ReadPropertyString('Host') === '') {
+            $this->Resolve();
+        }
         $this->configureIo(false);
         $this->sessionClosed();
         $this->configureIo(true);
