@@ -2,7 +2,7 @@
     "id": "{C11092D8-6115-460B-9882-CA3318C0E2A5}",
     "name": "HomeKit Device",
     "type": 3,
-    "vendor": "Stephan Sprick",
+    "vendor": "",
     "aliases": [],
     "parentRequirements": ["{79827379-F36E-4ADA-8A95-5F8D1DC92FA9}"],
     "childRequirements": [],
