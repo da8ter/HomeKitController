@@ -9,6 +9,7 @@ require_once __DIR__ . '/../libs/HapSession.php';
 require_once __DIR__ . '/../libs/HapHttp.php';
 require_once __DIR__ . '/../libs/HapPairing.php';
 require_once __DIR__ . '/../libs/HapModel.php';
+require_once __DIR__ . '/../libs/HapMdns.php';
 require_once __DIR__ . '/../libs/HkcSecretStore.php';
 require_once __DIR__ . '/../libs/HkcConnection.php';
 require_once __DIR__ . '/../libs/HkcVariables.php';
@@ -231,29 +232,62 @@ class HomeKitDevice extends IPSModuleStrict
         $this->configureIo(true);
     }
 
-    /** Sucht das Gerät per Bonjour über seine HomeKit-ID und übernimmt Adresse und Port. */
+    /**
+     * Sucht das Gerät per Bonjour über seine HomeKit-ID und übernimmt Adresse und Port. Sieht die Bonjour-Suche es nicht
+     * (auf der SymBox fehlte ein FP2 tagelang, während der Mac ihn sah), fragt es die zuletzt bekannte Adresse direkt.
+     */
     public function Resolve(): bool
     {
         $id = strtoupper($this->ReadPropertyString('AccessoryId'));
-        $control = IPS_GetInstanceListByModuleID(self::DNSSD)[0] ?? 0;
-        if ($id === '' || $control === 0 || !function_exists('ZC_QueryServiceType')) {
+        if ($id === '') {
             return false;
         }
-        foreach (@ZC_QueryServiceType($control, '_hap._tcp', '') ?: [] as $svc) {
-            foreach (@ZC_QueryService($control, (string)$svc['Name'], '_hap._tcp', (string)($svc['Domain'] ?? 'local.')) ?: [] as $d) {
-                if (in_array('ID=' . $id, array_map('strtoupper', (array)($d['TXTRecords'] ?? [])), true) && isset($d['IPv4'][0])) {
-                    $new = ['host' => (string)$d['IPv4'][0], 'port' => (int)$d['Port'], 'name' => (string)$svc['Name']];
-                    if ($new !== json_decode($this->ReadAttributeString('Resolved'), true)) {
-                        $this->WriteAttributeString('Resolved', (string)json_encode($new));
-                        $this->SendDebug('Bonjour', 'Gerät ' . $id . ' unter ' . $new['host'] . ':' . $new['port'], 0);
-                        return true;
+        $last = json_decode($this->ReadAttributeString('Resolved'), true);
+        $control = IPS_GetInstanceListByModuleID(self::DNSSD)[0] ?? 0;
+        if ($control > 0 && function_exists('ZC_QueryServiceType')) {
+            foreach (@ZC_QueryServiceType($control, '_hap._tcp', '') ?: [] as $svc) {
+                foreach (@ZC_QueryService($control, (string)$svc['Name'], '_hap._tcp', (string)($svc['Domain'] ?? 'local.')) ?: [] as $d) {
+                    if (in_array('ID=' . $id, array_map('strtoupper', (array)($d['TXTRecords'] ?? [])), true) && isset($d['IPv4'][0])) {
+                        return $this->adopt(['host' => (string)$d['IPv4'][0], 'port' => (int)$d['Port'], 'name' => (string)$svc['Name']], $last, 'Bonjour');
                     }
-                    return false;
                 }
             }
         }
-        $this->SendDebug('Bonjour', 'Gerät ' . $id . ' nicht gefunden', 0);
+        $host = is_array($last) ? (string)($last['host'] ?? '') : '';
+        if ($host !== '') {
+            foreach (HapMdns::parse($this->askDevice($host)) as $name => $svc) {
+                if ($svc['id'] === $id && $svc['port'] > 0) {
+                    return $this->adopt(['host' => $host, 'port' => $svc['port'], 'name' => $name], $last, 'mDNS direkt');
+                }
+            }
+        }
+        $this->SendDebug('Bonjour', 'Gerät ' . $id . ' nicht gefunden' . ($host !== '' ? ', auch nicht direkt unter ' . $host : ''), 0);
         return false;
+    }
+
+    /** Übernimmt eine gefundene Adresse; true, wenn sie sich geändert hat. */
+    private function adopt(array $new, mixed $last, string $via): bool
+    {
+        if ($new === $last) {
+            return false;
+        }
+        $this->WriteAttributeString('Resolved', (string)json_encode($new));
+        $this->SendDebug($via, 'Gerät unter ' . $new['host'] . ':' . $new['port'], 0);
+        return true;
+    }
+
+    /** Direkte mDNS-Anfrage an das Gerät (HapMdns); Antwort roh, '' ohne Antwort binnen 2 s. */
+    private function askDevice(string $host): string
+    {
+        $sock = @stream_socket_client('udp://' . $host . ':' . HapMdns::PORT, $errno, $error, 2);
+        if ($sock === false) {
+            return '';
+        }
+        stream_set_timeout($sock, 2);
+        @fwrite($sock, HapMdns::query());
+        $reply = @fread($sock, 9000);
+        fclose($sock);
+        return is_string($reply) ? $reply : '';
     }
 
     /** Timer: Wiederverbinden, Adresse nachführen, regelmäßig Werte nachlesen. */
